@@ -47,6 +47,11 @@ export default function SourceArea(props) {
     const toastStyle = useToastStyle();
     const { t } = useTranslation();
     const textAreaRef = useRef();
+    // Always points at the latest handleNewText so the persistent `new_text`
+    // listener never calls a stale closure (otherwise config values such as
+    // deleteNewline get frozen at the moment the listener was registered, and
+    // toggling them has no effect on a reused/pinned translate window).
+    const handleNewTextRef = useRef(null);
     const speak = useVoice();
 
     const handleNewText = async (text) => {
@@ -164,6 +169,9 @@ export default function SourceArea(props) {
             });
         }
     };
+    // Refresh the ref on every render so the listener below always runs the
+    // current closure (with up-to-date deleteNewline / incrementalTranslate / …).
+    handleNewTextRef.current = handleNewText;
 
     const keyDown = (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -220,7 +228,7 @@ export default function SourceArea(props) {
             }
             unlisten = listen('new_text', (event) => {
                 appWindow.setFocus();
-                handleNewText(event.payload);
+                handleNewTextRef.current(event.payload);
             });
         }
     }, [hideWindow]);
